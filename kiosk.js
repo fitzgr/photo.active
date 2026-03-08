@@ -164,7 +164,11 @@ function stopStream() {
   }
 
   state.stream.getTracks().forEach((track) => track.stop());
+  cameraEl.pause();
+  cameraEl.srcObject = null;
   state.stream = null;
+  captureBtn.disabled = true;
+  switchBtn.disabled = true;
 }
 
 async function startCamera(deviceId = null) {
@@ -604,6 +608,14 @@ galleryNextBtn.addEventListener("click", galleryNext);
 galleryExportBtn.addEventListener("click", exportGalleryCSV);
 
 window.addEventListener("beforeunload", stopStream);
+window.addEventListener("pagehide", stopStream);
+
+document.addEventListener("visibilitychange", () => {
+  // Release camera when tab is backgrounded to avoid locking device resources.
+  if (document.visibilityState === "hidden") {
+    stopStream();
+  }
+});
 
 configureEventUi();
 buildFilterChips();
