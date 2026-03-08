@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Browser Photo Booth - capture photos from your camera with countdowns and filters." />
+  <title>Photo Active Booth</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-shape bg-shape-1" aria-hidden="true"></div>
+  <div class="bg-shape bg-shape-2" aria-hidden="true"></div>
+
+  <main class="app">
+    <header class="hero">
+      <h1>Photo Active Booth</h1>
+      <p>Take event-style photos directly from your browser using your built-in camera.</p>
+    </header>
+
+    <section class="booth" aria-label="Photo booth">
+      <div class="preview-shell">
+        <video id="camera" autoplay playsinline muted></video>
+        <canvas id="captureCanvas" hidden></canvas>
+        <div id="countdown" class="countdown" aria-live="assertive"></div>
+      </div>
+
+      <aside class="controls" aria-label="Photo controls">
+        <div class="control-group">
+          <label for="cameraSelect">Camera</label>
+          <select id="cameraSelect"></select>
+        </div>
+
+        <div class="control-group">
+          <label for="timerSelect">Timer</label>
+          <select id="timerSelect">
+            <option value="0">No timer</option>
+            <option value="3" selected>3 sec</option>
+            <option value="5">5 sec</option>
+            <option value="10">10 sec</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="layoutSelect">Layout</label>
+          <select id="layoutSelect">
+            <option value="single">Single photo</option>
+            <option value="strip" selected>4-photo strip</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <span class="label">Filter</span>
+          <div class="chips" id="filterChips" role="radiogroup" aria-label="Color filter"></div>
+        </div>
+
+        <div class="button-row">
+          <button id="startCameraBtn" class="btn" type="button">Start Camera</button>
+          <button id="captureBtn" class="btn btn-primary" type="button" disabled>Capture</button>
+          <button id="switchBtn" class="btn" type="button" disabled>Switch Lens</button>
+        </div>
+
+        <p id="status" class="status" aria-live="polite">Camera is not started.</p>
+      </aside>
+    </section>
+
+    <section class="result" aria-label="Captured output">
+      <h2>Your Result</h2>
+      <canvas id="resultCanvas" class="result-canvas"></canvas>
+      <div class="button-row">
+        <button id="downloadBtn" class="btn" type="button" disabled>Download PNG</button>
+        <button id="retakeBtn" class="btn" type="button" disabled>Retake</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
