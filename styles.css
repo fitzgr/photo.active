@@ -31,6 +31,29 @@ body {
   gap: 1rem;
 }
 
+.build-badge {
+  position: fixed;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  font-size: 0.78rem;
+  line-height: 1;
+  backdrop-filter: blur(4px);
+}
+
+.build-badge code {
+  font-size: 0.76rem;
+}
+
 .shell-admin,
 .shell-kiosk {
   margin-top: 1.5rem;
