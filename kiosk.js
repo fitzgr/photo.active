@@ -5,6 +5,7 @@ const state = {
   facingMode: "user",
   currentFilter: "none",
   runningCapture: false,
+  eventRecord: null,
 };
 
 const filters = [
@@ -15,6 +16,8 @@ const filters = [
   { id: "vivid", name: "Vivid", css: "saturate(1.45) contrast(1.08)" },
 ];
 
+const eventNameEl = document.getElementById("eventName");
+const eventMetaEl = document.getElementById("eventMeta");
 const cameraEl = document.getElementById("camera");
 const captureCanvas = document.getElementById("captureCanvas");
 const resultCanvas = document.getElementById("resultCanvas");
@@ -24,16 +27,77 @@ const cameraSelectEl = document.getElementById("cameraSelect");
 const timerSelectEl = document.getElementById("timerSelect");
 const layoutSelectEl = document.getElementById("layoutSelect");
 const filterChipsEl = document.getElementById("filterChips");
+const guestNameEl = document.getElementById("guestName");
+const guestEmailEl = document.getElementById("guestEmail");
+const consentEl = document.getElementById("consent");
 
 const startCameraBtn = document.getElementById("startCameraBtn");
 const captureBtn = document.getElementById("captureBtn");
 const switchBtn = document.getElementById("switchBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const retakeBtn = document.getElementById("retakeBtn");
+const shareStubBtn = document.getElementById("shareStubBtn");
 
 function setStatus(text, ok = false) {
   statusEl.textContent = text;
   statusEl.classList.toggle("ok", ok);
+}
+
+function queryParam(name) {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name);
+}
+
+function resolveEvent() {
+  const requestedEventId = queryParam("event");
+  const events = window.photoActiveStore.getEvents();
+
+  if (requestedEventId) {
+    return events.find((e) => e.id === requestedEventId) || null;
+  }
+
+  return window.photoActiveStore.getLiveEvent();
+}
+
+function configureEventUi() {
+  state.eventRecord = resolveEvent();
+
+  if (!state.eventRecord) {
+    eventNameEl.textContent = "No active event";
+    eventMetaEl.textContent = "Open admin.html and set one event to Live.";
+    captureBtn.disabled = true;
+    setStatus("No live event found. Admin setup is required.");
+    return;
+  }
+
+  const event = state.eventRecord;
+  eventNameEl.textContent = event.name;
+  eventMetaEl.textContent = `${event.type} | ${event.publicGallery ? "Public" : "Private"} gallery`;
+  document.documentElement.style.setProperty("--accent", event.accentColor || "#f95d2f");
+
+  const supportsStrip = Boolean(event.modes?.strip);
+  const supportsPhoto = Boolean(event.modes?.photo);
+
+  layoutSelectEl.innerHTML = "";
+
+  if (supportsPhoto) {
+    const single = document.createElement("option");
+    single.value = "single";
+    single.textContent = "Single photo";
+    layoutSelectEl.appendChild(single);
+  }
+
+  if (supportsStrip) {
+    const strip = document.createElement("option");
+    strip.value = "strip";
+    strip.textContent = "4-photo strip";
+    layoutSelectEl.appendChild(strip);
+  }
+
+  if (!supportsPhoto && !supportsStrip) {
+    captureBtn.disabled = true;
+    setStatus("This event has no supported capture modes yet.");
+  }
 }
 
 function buildFilterChips() {
@@ -178,8 +242,8 @@ async function captureStrip(timerSec) {
     }
 
     showCountdown(0);
-
     drawVideoFrameToCanvas(captureCanvas, frameW, frameH);
+
     const y = margin + i * (frameH + spacer);
     ctx.drawImage(captureCanvas, margin, y, frameW, frameH);
 
@@ -188,15 +252,32 @@ async function captureStrip(timerSec) {
     }
   }
 
-  // Add simple branding/footer similar to event booth strips.
+  const brand = state.eventRecord?.logoText || "PHOTO ACTIVE";
   ctx.fillStyle = "#14212f";
   ctx.font = "bold 36px Trebuchet MS";
   ctx.textAlign = "center";
-  ctx.fillText("PHOTO ACTIVE", stripW / 2, stripH - 68);
+  ctx.fillText(brand, stripW / 2, stripH - 68);
 
   ctx.font = "20px Trebuchet MS";
-  ctx.fillStyle = "#f95d2f";
+  ctx.fillStyle = state.eventRecord?.accentColor || "#f95d2f";
   ctx.fillText(new Date().toLocaleString(), stripW / 2, stripH - 32);
+}
+
+function storeCaptureRecord() {
+  if (!state.eventRecord) {
+    return;
+  }
+
+  window.photoActiveStore.appendCapture({
+    id: `cap-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    eventId: state.eventRecord.id,
+    createdAt: new Date().toISOString(),
+    layout: layoutSelectEl.value,
+    guestName: guestNameEl.value.trim(),
+    guestEmail: guestEmailEl.value.trim(),
+    consent: consentEl.checked,
+    imageDataUrl: resultCanvas.toDataURL("image/png"),
+  });
 }
 
 async function captureSequence() {
@@ -209,6 +290,7 @@ async function captureSequence() {
   switchBtn.disabled = true;
   downloadBtn.disabled = true;
   retakeBtn.disabled = true;
+  shareStubBtn.disabled = true;
 
   try {
     const timerSec = Number(timerSelectEl.value);
@@ -222,9 +304,11 @@ async function captureSequence() {
       await captureSingle(timerSec);
     }
 
+    storeCaptureRecord();
     downloadBtn.disabled = false;
     retakeBtn.disabled = false;
-    setStatus("Capture complete. Download when ready.", true);
+    shareStubBtn.disabled = false;
+    setStatus("Capture complete. Download or queue share.", true);
   } catch (err) {
     console.error(err);
     setStatus(`Capture failed: ${err.message}`);
@@ -240,7 +324,7 @@ function downloadResult() {
   const link = document.createElement("a");
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   link.href = resultCanvas.toDataURL("image/png");
-  link.download = `photo-active-${stamp}.png`;
+  link.download = `${(state.eventRecord?.name || "event").replace(/\s+/g, "-").toLowerCase()}-${stamp}.png`;
   link.click();
 }
 
@@ -259,6 +343,19 @@ function resetResult() {
   ctx.clearRect(0, 0, resultCanvas.width, resultCanvas.height);
   downloadBtn.disabled = true;
   retakeBtn.disabled = true;
+  shareStubBtn.disabled = true;
+}
+
+function queueShareStub() {
+  const details = [];
+  if (guestNameEl.value.trim()) {
+    details.push(`Name: ${guestNameEl.value.trim()}`);
+  }
+  if (guestEmailEl.value.trim()) {
+    details.push(`Email: ${guestEmailEl.value.trim()}`);
+  }
+
+  setStatus(`Share queued locally (${details.join(" | ") || "anonymous"}). Cloud delivery hook pending.`, true);
 }
 
 startCameraBtn.addEventListener("click", async () => {
@@ -274,6 +371,7 @@ captureBtn.addEventListener("click", captureSequence);
 switchBtn.addEventListener("click", switchLens);
 downloadBtn.addEventListener("click", downloadResult);
 retakeBtn.addEventListener("click", resetResult);
+shareStubBtn.addEventListener("click", queueShareStub);
 
 cameraSelectEl.addEventListener("change", async (e) => {
   const deviceId = e.target.value;
@@ -287,6 +385,7 @@ cameraSelectEl.addEventListener("change", async (e) => {
 
 window.addEventListener("beforeunload", stopStream);
 
+configureEventUi();
 buildFilterChips();
 resetResult();
 applyCurrentFilter();

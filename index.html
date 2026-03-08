@@ -3,76 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Browser Photo Booth - capture photos from your camera with countdowns and filters." />
-  <title>Photo Active Booth</title>
+  <meta name="description" content="Photo Active platform launcher for admin and kiosk interfaces." />
+  <title>Photo Active Platform</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="bg-shape bg-shape-1" aria-hidden="true"></div>
-  <div class="bg-shape bg-shape-2" aria-hidden="true"></div>
-
-  <main class="app">
+  <main class="shell">
     <header class="hero">
-      <h1>Photo Active Booth</h1>
-      <p>Take event-style photos directly from your browser using your built-in camera.</p>
+      <p class="eyebrow">Event Photo Booth Platform</p>
+      <h1>Photo Active</h1>
+      <p>
+        Browser-based event booth foundation with an admin setup console and guest kiosk mode.
+        This MVP runs entirely on your desktop with local storage and camera access.
+      </p>
     </header>
 
-    <section class="booth" aria-label="Photo booth">
-      <div class="preview-shell">
-        <video id="camera" autoplay playsinline muted></video>
-        <canvas id="captureCanvas" hidden></canvas>
-        <div id="countdown" class="countdown" aria-live="assertive"></div>
-      </div>
+    <section class="launcher-grid" aria-label="Application entry points">
+      <article class="launch-card">
+        <h2>Admin Console</h2>
+        <p>Create events, set gallery visibility, and choose the live kiosk event.</p>
+        <a class="btn btn-primary" href="admin.html">Open Admin</a>
+      </article>
 
-      <aside class="controls" aria-label="Photo controls">
-        <div class="control-group">
-          <label for="cameraSelect">Camera</label>
-          <select id="cameraSelect"></select>
-        </div>
-
-        <div class="control-group">
-          <label for="timerSelect">Timer</label>
-          <select id="timerSelect">
-            <option value="0">No timer</option>
-            <option value="3" selected>3 sec</option>
-            <option value="5">5 sec</option>
-            <option value="10">10 sec</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <label for="layoutSelect">Layout</label>
-          <select id="layoutSelect">
-            <option value="single">Single photo</option>
-            <option value="strip" selected>4-photo strip</option>
-          </select>
-        </div>
-
-        <div class="control-group">
-          <span class="label">Filter</span>
-          <div class="chips" id="filterChips" role="radiogroup" aria-label="Color filter"></div>
-        </div>
-
-        <div class="button-row">
-          <button id="startCameraBtn" class="btn" type="button">Start Camera</button>
-          <button id="captureBtn" class="btn btn-primary" type="button" disabled>Capture</button>
-          <button id="switchBtn" class="btn" type="button" disabled>Switch Lens</button>
-        </div>
-
-        <p id="status" class="status" aria-live="polite">Camera is not started.</p>
-      </aside>
+      <article class="launch-card">
+        <h2>Guest Kiosk</h2>
+        <p>Run the photo booth with built-in camera capture and event-configured settings.</p>
+        <a class="btn" href="kiosk.html">Open Kiosk</a>
+      </article>
     </section>
 
-    <section class="result" aria-label="Captured output">
-      <h2>Your Result</h2>
-      <canvas id="resultCanvas" class="result-canvas"></canvas>
-      <div class="button-row">
-        <button id="downloadBtn" class="btn" type="button" disabled>Download PNG</button>
-        <button id="retakeBtn" class="btn" type="button" disabled>Retake</button>
-      </div>
+    <section class="panel">
+      <h2>Local Run</h2>
+      <p>Serve the project on localhost so camera APIs work reliably:</p>
+      <pre><code>py -m http.server 5500</code></pre>
+      <p>Then open <code>http://localhost:5500</code>.</p>
     </section>
   </main>
-
-  <script src="app.js" defer></script>
 </body>
 </html>

@@ -1,16 +1,19 @@
 # Photo Active Booth
 
-A browser-based photo booth web app inspired by event booth experiences.
+A browser-based event photo booth platform foundation with two web interfaces:
 
-## Features
+- `admin.html` for event setup and live event control
+- `kiosk.html` for guest capture flow
 
-- Uses the device built-in camera via `getUserMedia`.
-- Works in modern desktop and mobile browsers.
-- Timer-based capture (`0`, `3`, `5`, `10` seconds).
-- Single photo mode and 4-photo strip mode.
-- Basic live filters.
-- Download final image as PNG.
-- Camera selector and lens switch support.
+## MVP Features (Current Branch)
+
+- Camera capture via `getUserMedia` in kiosk mode.
+- Event builder in admin mode with event type, gallery visibility, branding color, and capture mode toggles.
+- Live event selector (`Go Live`) that drives kiosk behavior.
+- Capture modes: single photo and 4-photo strip.
+- Guest metadata fields (name, email, consent) captured locally as share queue stubs.
+- Event and capture records stored in browser `localStorage`.
+- Download output as PNG.
 
 ## Run
 
@@ -29,6 +32,18 @@ python -m http.server 5500
 
 Then open `http://localhost:5500` in your browser.
 
+## App Routes
+
+- `http://localhost:5500/index.html` - launcher
+- `http://localhost:5500/admin.html` - admin setup
+- `http://localhost:5500/kiosk.html` - guest kiosk (uses live event)
+
+Typical local flow:
+
+1. Open `admin.html` and create at least one event.
+2. Click `Set Live` on that event.
+3. Open `kiosk.html` and start camera capture.
+
 ## Notes
 
 - For production, host this over HTTPS.
@@ -37,14 +52,13 @@ Then open `http://localhost:5500` in your browser.
 
 ## Publish to the Web (GitHub Pages)
 
-This repository includes `.github/workflows/deploy-pages.yml` to auto-deploy the app on every push to `main`.
+This repository uses `.github/workflows/deploy-gh-pages-branch.yml` to publish static files to the `gh-pages` branch.
 
 1. Open your repository settings:
 	- `https://github.com/fitzgr/photo.active/settings/pages`
-2. In **Build and deployment**:
-	- Set **Source** to `GitHub Actions`.
-3. Push to `main` (already done for app code; do it again after workflow changes).
-4. Wait for the workflow to finish in the **Actions** tab.
+2. Run or wait for the deploy workflow in the **Actions** tab.
+3. In Pages settings, set source to `Deploy from a branch` using `gh-pages` and `/ (root)`.
+4. Wait until Pages finishes provisioning.
 
 Expected live URL:
 
