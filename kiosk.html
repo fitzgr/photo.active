@@ -114,12 +114,30 @@
       </div>
       <p id="galleryEmpty" class="muted">No captures yet. Start capturing to see your session gallery here.</p>
     </section>
+
+    <section class="result" aria-label="Session summary">
+      <h2>Session Summary</h2>
+      <div class="session-info">
+        <p><strong>Event:</strong> <span id="sessionEventName">—</span></p>
+        <p><strong>Captures:</strong> <span id="sessionCaptureCount">0</span></p>
+        <p><strong>Storage used:</strong> <span id="sessionStorageSize">0 B</span></p>
+        <p><strong>Session ID:</strong> <code id="sessionId" class="muted">—</code></p>
+      </div>
+      <div class="button-row">
+        <button id="zipDownloadBtn" class="btn" type="button" disabled>Download as ZIP</button>
+        <button id="clearSessionBtn" class="btn" type="button">Clear Session</button>
+      </div>
+      <p id="sessionStatus" class="status" aria-live="polite"></p>
+    </section>
   </main>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
   <script src="js/store.js" defer></script>
   <script src="js/gif-encoder.js" defer></script>
   <script src="js/video-recorder.js" defer></script>
   <script src="js/gallery-manager.js" defer></script>
+  <script src="js/zip-exporter.js" defer></script>
+  <script src="js/session-manager.js" defer></script>
   <script src="kiosk.js" defer></script>
 </body>
 </html>

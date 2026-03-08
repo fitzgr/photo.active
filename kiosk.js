@@ -6,6 +6,8 @@ const state = {
   currentFilter: "none",
   runningCapture: false,
   eventRecord: null,
+  sessionId: null,
+  sessionManager: null,
 };
 
 const filters = [
@@ -44,6 +46,13 @@ const galleryPrevBtn = document.getElementById("galleryPrevBtn");
 const galleryNextBtn = document.getElementById("galleryNextBtn");
 const galleryCounter = document.getElementById("galleryCounter");
 const galleryExportBtn = document.getElementById("galleryExportBtn");
+const zipDownloadBtn = document.getElementById("zipDownloadBtn");
+const clearSessionBtn = document.getElementById("clearSessionBtn");
+const sessionEventName = document.getElementById("sessionEventName");
+const sessionCaptureCount = document.getElementById("sessionCaptureCount");
+const sessionStorageSize = document.getElementById("sessionStorageSize");
+const sessionIdEl = document.getElementById("sessionId");
+const sessionStatus = document.getElementById("sessionStatus");
 const galleryEmpty = document.getElementById("galleryEmpty");
 const videoDurationSelect = document.getElementById("videoDurationSelect");
 
@@ -294,6 +303,10 @@ function storeCaptureRecord() {
     galleryManager.load();
     updateGalleryView();
   }
+
+  // Update session summary after capture
+  updateSessionSummary();
+}
 }
 
 async function captureSequence() {
@@ -435,6 +448,132 @@ function exportGalleryCSV() {
   }
 }
 
+function updateSessionSummary() {
+  if (!state.sessionManager || !state.eventRecord || !state.sessionId) return;
+
+  // Update event name
+  if (sessionEventName) {
+    sessionEventName.textContent = state.eventRecord.name || "Unnamed Event";
+  }
+
+  // Update capture count
+  state.sessionManager.updateSessionCaptureCount(state.sessionId);
+  const captureCount =
+    store.getEvent(state.eventRecord.id)?.captures?.length || 0;
+  if (sessionCaptureCount) {
+    sessionCaptureCount.textContent = captureCount;
+  }
+
+  // Update storage estimate
+  const storageBytes = state.sessionManager.getStorageEstimate();
+  const storageFormatted = state.sessionManager.formatBytes(storageBytes);
+  if (sessionStorageSize) {
+    sessionStorageSize.textContent = storageFormatted;
+  }
+
+  // Update session ID
+  if (sessionIdEl) {
+    sessionIdEl.textContent = state.sessionId;
+  }
+
+  // Update status
+  if (sessionStatus) {
+    sessionStatus.textContent = "Session active - captures accumulating locally";
+    sessionStatus.className = "session-active";
+  }
+}
+
+async function downloadSessionZip() {
+  if (!state.sessionManager || !state.eventRecord || !galleryManager) {
+    setStatus("No session or event loaded.", false);
+    return;
+  }
+
+  try {
+    setStatus("Preparing ZIP download...", true);
+
+    const zipExporter = new window.ZipExporter();
+
+    // Get all captures from the current event
+    const captures = galleryManager.captures || [];
+    if (captures.length === 0) {
+      setStatus("No captures to download.", false);
+      return;
+    }
+
+    // Add all images to the ZIP
+    captures.forEach((capture, idx) => {
+      const fileName = `photo_${idx + 1}.png`;
+      zipExporter.addImageFile(fileName, capture.imageDataUrl);
+    });
+
+    // Generate and add CSV metadata
+    try {
+      const csvContent = generateCSVContent(captures, state.eventRecord.name);
+      zipExporter.addTextFile("captures.csv", csvContent);
+    } catch (err) {
+      console.warn("CSV generation failed, continuing with images only:", err);
+    }
+
+    // Generate ZIP blob and trigger download
+    await zipExporter.download(state.eventRecord.name);
+    setStatus(`ZIP downloaded: ${captures.length} photos + metadata`, true);
+  } catch (err) {
+    console.error("ZIP export failed:", err);
+    setStatus(`ZIP export failed: ${err.message}`, false);
+  }
+}
+
+function generateCSVContent(captures, eventName) {
+  const headers = ["Photo", "Timestamp", "Filter", "Type"];
+  const rows = captures.map((capture, idx) => [
+    `photo_${idx + 1}.png`,
+    new Date(capture.timestamp).toLocaleString(),
+    capture.filter || "none",
+    capture.type || "photo",
+  ]);
+
+  const csvLines = [
+    `Event,${eventName}`,
+    `Date,${new Date().toLocaleString()}`,
+    "",
+    headers.join(","),
+    ...rows.map((r) => r.map((v) => `"${v}"`).join(",")),
+  ];
+
+  return csvLines.join("\n");
+}
+
+function clearSession() {
+  if (!state.eventRecord) return;
+
+  try {
+    // Archive the current session
+    if (state.sessionManager && state.sessionId) {
+      state.sessionManager.archiveSession(state.sessionId);
+    }
+
+    // Clear the captures for this event
+    store.updateEvent(state.eventRecord.id, { captures: [] });
+    galleryManager.captures = [];
+    resetResult();
+    initGallery();
+
+    // Create a new session
+    const newSessionId = state.sessionManager.createSession(
+      state.eventRecord.id,
+      state.eventRecord.name
+    );
+    state.sessionId = newSessionId;
+    updateSessionSummary();
+
+    setStatus("Session cleared. New session started.", true);
+  } catch (err) {
+    console.error("Clear session failed:", err);
+    setStatus(`Clear failed: ${err.message}`, false);
+  }
+}
+
 startCameraBtn.addEventListener("click", async () => {
   try {
     await startCamera(state.currentDeviceId || null);
@@ -471,6 +610,27 @@ buildFilterChips();
 resetResult();
 applyCurrentFilter();
 initGallery();
+
+// Initialize session manager
+state.sessionManager = new window.SessionManager();
+if (state.eventRecord) {
+  const sessionId = state.sessionManager.createSession(
+    state.eventRecord.id,
+    state.eventRecord.name
+  );
+  state.sessionId = sessionId;
+  updateSessionSummary();
+}
+
+// Session ZIP download handler
+zipDownloadBtn?.addEventListener("click", downloadSessionZip);
+
+// Clear session handler
+clearSessionBtn?.addEventListener("click", () => {
+  if (confirm("Clear all captures in this session? This cannot be undone.")) {
+    clearSession();
+  }
+});
 
 if (!navigator.mediaDevices?.getUserMedia) {
   setStatus("This browser does not support camera access.");
