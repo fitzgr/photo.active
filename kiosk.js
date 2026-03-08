@@ -37,6 +37,15 @@ const switchBtn = document.getElementById("switchBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const retakeBtn = document.getElementById("retakeBtn");
 const shareStubBtn = document.getElementById("shareStubBtn");
+const galleryContainer = document.getElementById("galleryContainer");
+const galleryImage = document.getElementById("galleryImage");
+const galleryVideo = document.getElementById("galleryVideo");
+const galleryPrevBtn = document.getElementById("galleryPrevBtn");
+const galleryNextBtn = document.getElementById("galleryNextBtn");
+const galleryCounter = document.getElementById("galleryCounter");
+const galleryExportBtn = document.getElementById("galleryExportBtn");
+const galleryEmpty = document.getElementById("galleryEmpty");
+const videoDurationSelect = document.getElementById("videoDurationSelect");
 
 function setStatus(text, ok = false) {
   statusEl.textContent = text;
@@ -278,6 +287,13 @@ function storeCaptureRecord() {
     consent: consentEl.checked,
     imageDataUrl: resultCanvas.toDataURL("image/png"),
   });
+
+  if (!galleryManager) {
+    initGallery();
+  } else {
+    galleryManager.load();
+    updateGalleryView();
+  }
 }
 
 async function captureSequence() {
@@ -358,6 +374,67 @@ function queueShareStub() {
   setStatus(`Share queued locally (${details.join(" | ") || "anonymous"}). Cloud delivery hook pending.`, true);
 }
 
+let galleryManager = null;
+
+function initGallery() {
+  if (!state.eventRecord) {
+    return;
+  }
+
+  galleryManager = new window.GalleryManager(state.eventRecord.id);
+  galleryManager.load();
+  updateGalleryView();
+}
+
+function updateGalleryView() {
+  if (!galleryManager || galleryManager.captures.length === 0) {
+    galleryContainer.style.display = "none";
+    galleryEmpty.style.display = "block";
+    return;
+  }
+
+  galleryContainer.style.display = "block";
+  galleryEmpty.style.display = "none";
+
+  const current = galleryManager.getCurrent();
+  if (!current) {
+    return;
+  }
+
+  galleryImage.style.display = "none";
+  galleryVideo.style.display = "none";
+
+  if (current.imageDataUrl) {
+    galleryImage.src = current.imageDataUrl;
+    galleryImage.style.display = "block";
+  } else if (current.videoDataUrl) {
+    galleryVideo.src = current.videoDataUrl;
+    galleryVideo.style.display = "block";
+  }
+
+  galleryCounter.textContent = `${galleryManager.currentIndex + 1} / ${galleryManager.captures.length}`;
+  galleryExportBtn.disabled = false;
+}
+
+function galleryPrev() {
+  if (galleryManager && galleryManager.prev()) {
+    updateGalleryView();
+  }
+}
+
+function galleryNext() {
+  if (galleryManager && galleryManager.next()) {
+    updateGalleryView();
+  }
+}
+
+function exportGalleryCSV() {
+  if (galleryManager && state.eventRecord) {
+    galleryManager.downloadCSV(state.eventRecord.name);
+    setStatus("CSV exported successfully.", true);
+  }
+}
+
 startCameraBtn.addEventListener("click", async () => {
   try {
     await startCamera(state.currentDeviceId || null);
@@ -383,12 +460,17 @@ cameraSelectEl.addEventListener("change", async (e) => {
   }
 });
 
+galleryPrevBtn.addEventListener("click", galleryPrev);
+galleryNextBtn.addEventListener("click", galleryNext);
+galleryExportBtn.addEventListener("click", exportGalleryCSV);
+
 window.addEventListener("beforeunload", stopStream);
 
 configureEventUi();
 buildFilterChips();
 resetResult();
 applyCurrentFilter();
+initGallery();
 
 if (!navigator.mediaDevices?.getUserMedia) {
   setStatus("This browser does not support camera access.");
