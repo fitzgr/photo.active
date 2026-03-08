@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Photo Active kiosk mode for event guests." />
+  <title>Photo Active Kiosk</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell shell-kiosk">
+    <header class="hero">
+      <p class="eyebrow">Guest Kiosk</p>
+      <h1 id="eventName">Photo Active Kiosk</h1>
+      <p id="eventMeta">Load a live event from admin settings.</p>
+      <nav class="top-nav">
+        <a href="index.html">Home</a>
+        <a href="admin.html">Admin</a>
+      </nav>
+    </header>
+
+    <section class="booth" aria-label="Photo booth">
+      <div class="preview-shell">
+        <video id="camera" autoplay playsinline muted></video>
+        <canvas id="captureCanvas" hidden></canvas>
+        <div id="countdown" class="countdown" aria-live="assertive"></div>
+      </div>
+
+      <aside class="controls" aria-label="Photo controls">
+        <div class="control-group">
+          <label for="cameraSelect">Camera</label>
+          <select id="cameraSelect"></select>
+        </div>
+
+        <div class="control-group">
+          <label for="timerSelect">Timer</label>
+          <select id="timerSelect">
+            <option value="0">No timer</option>
+            <option value="3" selected>3 sec</option>
+            <option value="5">5 sec</option>
+            <option value="10">10 sec</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="layoutSelect">Layout</label>
+          <select id="layoutSelect"></select>
+        </div>
+
+        <div class="control-group">
+          <span class="label">Filter</span>
+          <div class="chips" id="filterChips" role="radiogroup" aria-label="Color filter"></div>
+        </div>
+
+        <div class="control-group">
+          <label for="guestName">Guest name</label>
+          <input id="guestName" type="text" placeholder="Optional" />
+        </div>
+
+        <div class="control-group">
+          <label for="guestEmail">Guest email</label>
+          <input id="guestEmail" type="email" placeholder="Optional" />
+        </div>
+
+        <label class="control-inline">
+          <input id="consent" type="checkbox" />
+          I consent to media sharing follow-up.
+        </label>
+
+        <div class="button-row">
+          <button id="startCameraBtn" class="btn" type="button">Start Camera</button>
+          <button id="captureBtn" class="btn btn-primary" type="button" disabled>Capture</button>
+          <button id="switchBtn" class="btn" type="button" disabled>Switch Lens</button>
+        </div>
+
+        <p id="status" class="status" aria-live="polite">Camera is not started.</p>
+      </aside>
+    </section>
+
+    <section class="result" aria-label="Captured output">
+      <h2>Your Result</h2>
+      <canvas id="resultCanvas" class="result-canvas"></canvas>
+      <div class="button-row">
+        <button id="downloadBtn" class="btn" type="button" disabled>Download PNG</button>
+        <button id="retakeBtn" class="btn" type="button" disabled>Retake</button>
+        <button id="shareStubBtn" class="btn" type="button" disabled>Queue Share</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/store.js" defer></script>
+  <script src="kiosk.js" defer></script>
+</body>
+</html>
