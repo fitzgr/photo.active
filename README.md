@@ -34,3 +34,20 @@ Then open `http://localhost:5500` in your browser.
 - For production, host this over HTTPS.
 - On iOS Safari, camera usage requires a direct user interaction (already handled by Start Camera button).
 - If multiple cameras exist, grant permission first so labels/device list populate.
+
+## Publish to the Web (GitHub Pages)
+
+This repository includes `.github/workflows/deploy-pages.yml` to auto-deploy the app on every push to `main`.
+
+1. Open your repository settings:
+	- `https://github.com/fitzgr/photo.active/settings/pages`
+2. In **Build and deployment**:
+	- Set **Source** to `GitHub Actions`.
+3. Push to `main` (already done for app code; do it again after workflow changes).
+4. Wait for the workflow to finish in the **Actions** tab.
+
+Expected live URL:
+
+- `https://fitzgr.github.io/photo.active/`
+
+If the page shows old content, hard refresh (`Ctrl+F5`) after deployment.
