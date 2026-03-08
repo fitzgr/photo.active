@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Active Admin</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell shell-admin">
+    <header class="hero">
+      <p class="eyebrow">Admin Console</p>
+      <h1>Event Builder</h1>
+      <p>Create events, assign booth modes, and set one event live for kiosk devices.</p>
+      <nav class="top-nav">
+        <a href="index.html">Home</a>
+        <a href="kiosk.html">Open Kiosk</a>
+      </nav>
+    </header>
+
+    <section class="grid-two">
+      <article class="panel">
+        <h2>Create Event</h2>
+        <form id="eventForm" class="form-grid">
+          <label>
+            Event name
+            <input name="eventName" type="text" placeholder="Fitz Gala 2026" required />
+          </label>
+
+          <label>
+            Event date/time
+            <input name="eventDate" type="datetime-local" />
+          </label>
+
+          <label>
+            Event type
+            <select name="eventType">
+              <option>Wedding</option>
+              <option>Corporate</option>
+              <option>Private</option>
+              <option>Public</option>
+            </select>
+          </label>
+
+          <label>
+            Gallery visibility
+            <select name="galleryType">
+              <option value="public">Public</option>
+              <option value="private">Private</option>
+            </select>
+          </label>
+
+          <label>
+            Accent color
+            <input name="accentColor" type="color" value="#f95d2f" />
+          </label>
+
+          <label>
+            Strip footer text
+            <input name="logoText" type="text" value="PHOTO ACTIVE" />
+          </label>
+
+          <label class="full-width">
+            Idle overlay text
+            <input name="overlayText" type="text" value="Tap to start" />
+          </label>
+
+          <fieldset class="full-width mode-fieldset">
+            <legend>Capture modes</legend>
+            <label><input id="modePhoto" type="checkbox" checked /> Single photo</label>
+            <label><input id="modeStrip" type="checkbox" checked /> Multi-photo strip</label>
+            <label><input id="modeGif" type="checkbox" /> GIF (placeholder)</label>
+            <label><input id="modeVideo" type="checkbox" /> Video testimonial (placeholder)</label>
+          </fieldset>
+
+          <button class="btn btn-primary" type="submit">Save Event</button>
+        </form>
+        <p id="eventStatus" class="status">No live event selected.</p>
+      </article>
+
+      <article class="panel">
+        <h2>Events</h2>
+        <div id="eventList" class="stack"></div>
+      </article>
+    </section>
+  </main>
+
+  <script src="js/store.js" defer></script>
+  <script src="admin.js" defer></script>
+</body>
+</html>
