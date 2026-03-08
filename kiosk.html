@@ -53,6 +53,15 @@
         </div>
 
         <div class="control-group">
+          <label for="videoDurationSelect">Video duration (if enabled)</label>
+          <select id="videoDurationSelect">
+            <option value="10">10 seconds</option>
+            <option value="20">20 seconds</option>
+            <option value="30" selected>30 seconds</option>
+          </select>
+        </div>
+
+        <div class="control-group">
           <label for="guestName">Guest name</label>
           <input id="guestName" type="text" placeholder="Optional" />
         </div>
@@ -86,9 +95,31 @@
         <button id="shareStubBtn" class="btn" type="button" disabled>Queue Share</button>
       </div>
     </section>
+
+    <section class="result" aria-label="Session gallery">
+      <h2>Session Gallery</h2>
+      <div id="galleryContainer" class="gallery-container" style="display:none;">
+        <div class="gallery-viewer">
+          <img id="galleryImage" src="" alt="Gallery preview" class="gallery-image" style="display:none;" />
+          <video id="galleryVideo" class="gallery-image" style="display:none;" controls></video>
+        </div>
+        <div class="gallery-nav">
+          <button id="galleryPrevBtn" class="btn" type="button">← Previous</button>
+          <span id="galleryCounter" class="gallery-counter">0 / 0</span>
+          <button id="galleryNextBtn" class="btn" type="button">Next →</button>
+        </div>
+        <div class="button-row">
+          <button id="galleryExportBtn" class="btn" type="button" disabled>Export CSV</button>
+        </div>
+      </div>
+      <p id="galleryEmpty" class="muted">No captures yet. Start capturing to see your session gallery here.</p>
+    </section>
   </main>
 
   <script src="js/store.js" defer></script>
+  <script src="js/gif-encoder.js" defer></script>
+  <script src="js/video-recorder.js" defer></script>
+  <script src="js/gallery-manager.js" defer></script>
   <script src="kiosk.js" defer></script>
 </body>
 </html>
