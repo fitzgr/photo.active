@@ -25,6 +25,10 @@ const captureCanvas = document.getElementById("captureCanvas");
 const resultCanvas = document.getElementById("resultCanvas");
 const countdownEl = document.getElementById("countdown");
 const statusEl = document.getElementById("status");
+const cameraDiagnosticsEl = document.getElementById("cameraDiagnostics");
+const cameraDiagnosticsTitleEl = document.getElementById("cameraDiagnosticsTitle");
+const cameraDiagnosticsSummaryEl = document.getElementById("cameraDiagnosticsSummary");
+const cameraDiagnosticsListEl = document.getElementById("cameraDiagnosticsList");
 const cameraSelectEl = document.getElementById("cameraSelect");
 const timerSelectEl = document.getElementById("timerSelect");
 const layoutSelectEl = document.getElementById("layoutSelect");
@@ -60,6 +64,60 @@ const videoDurationSelect = document.getElementById("videoDurationSelect");
 function setStatus(text, ok = false) {
   statusEl.textContent = text;
   statusEl.classList.toggle("ok", ok);
+}
+
+function hideCameraDiagnostics() {
+  if (!cameraDiagnosticsEl) {
+    return;
+  }
+
+  cameraDiagnosticsEl.hidden = true;
+  cameraDiagnosticsSummaryEl.textContent = "";
+  cameraDiagnosticsListEl.innerHTML = "";
+}
+
+function showCameraDiagnostics(err, contextLabel = "camera connection") {
+  if (!cameraDiagnosticsEl) {
+    return;
+  }
+
+  const errorName = err?.name || "CameraError";
+  const summary = err?.userMessage || err?.message || "Camera connection failed.";
+  const steps = [
+    "Fully close Google Meet, Zoom, Teams, OBS, Discord, and any other app or browser tab that may still hold the camera.",
+    "Wait a few seconds after ending a call, then click Restart Camera again so the browser can reacquire the device.",
+    "In Chrome or Edge, open the site permissions for this page and confirm Camera is allowed for this site.",
+    "Check Windows Settings > Privacy & security > Camera and confirm desktop apps and your browser are allowed to use the camera.",
+    "If the selected camera stays unavailable, switch cameras in the dropdown or unplug and reconnect the webcam.",
+  ];
+
+  if (errorName === "NotAllowedError") {
+    steps.unshift("Camera permission is blocked. Allow access in the browser address bar, then try Restart Camera.");
+  }
+
+  if (errorName === "NotReadableError") {
+    steps.unshift("This usually means another app or tab still owns the camera, even if the call window was closed.");
+  }
+
+  if (errorName === "NotFoundError") {
+    steps.unshift("No camera is currently visible to the browser. Check USB connection, laptop privacy shutter, or driver state.");
+  }
+
+  if (errorName === "OverconstrainedError") {
+    steps.unshift("The previously selected device is no longer available. Restart Camera will try to fall back to any available camera.");
+  }
+
+  cameraDiagnosticsTitleEl.textContent = "Camera Diagnostics";
+  cameraDiagnosticsSummaryEl.textContent = `${contextLabel}: ${summary}`;
+  cameraDiagnosticsListEl.innerHTML = "";
+
+  for (const step of steps) {
+    const item = document.createElement("li");
+    item.textContent = step;
+    cameraDiagnosticsListEl.appendChild(item);
+  }
+
+  cameraDiagnosticsEl.hidden = false;
 }
 
 function queryParam(name) {
@@ -266,6 +324,7 @@ async function startCamera(deviceId = null) {
 
         captureBtn.disabled = false;
         restartCameraBtn.disabled = false;
+        hideCameraDiagnostics();
         setStatus("Camera active. Ready to capture.", true);
         return;
       } catch (err) {
@@ -277,7 +336,12 @@ async function startCamera(deviceId = null) {
     startCameraBtn.disabled = false;
   }
 
-  throw new Error(describeCameraError(lastError));
+  if (!lastError) {
+    lastError = new Error("Unknown camera error.");
+  }
+
+  lastError.userMessage = describeCameraError(lastError);
+  throw lastError;
 }
 
 async function connectCameraWithRetry(deviceId = null, maxAttempts = 3) {
@@ -320,7 +384,8 @@ async function restartCamera() {
     );
   } catch (err) {
     console.error(err);
-    setStatus(`Camera restart failed: ${err.message}. Close other camera apps and try again.`);
+    setStatus(`Camera restart failed: ${err.userMessage || err.message}. Close other camera apps and try again.`);
+    showCameraDiagnostics(err, "Restart failed");
   }
 }
 
@@ -698,7 +763,8 @@ startCameraBtn.addEventListener("click", async () => {
     await connectCameraWithRetry(state.currentDeviceId || null, 3);
   } catch (err) {
     console.error(err);
-    setStatus(`Camera start failed: ${err.message}. Use Restart Camera, then verify HTTPS or localhost.`);
+    setStatus(`Camera start failed: ${err.userMessage || err.message}. Use Restart Camera, then verify HTTPS or localhost.`);
+    showCameraDiagnostics(err, "Start failed");
   }
 });
 
@@ -716,7 +782,8 @@ cameraSelectEl.addEventListener("change", async (e) => {
     await startCamera(deviceId);
   } catch (err) {
     console.error(err);
-    setStatus(`Unable to switch camera: ${err.message}`);
+    setStatus(`Unable to switch camera: ${err.userMessage || err.message}`);
+    showCameraDiagnostics(err, "Camera switch failed");
   }
 });
 
@@ -777,4 +844,5 @@ clearSessionBtn?.addEventListener("click", () => {
 
 if (!navigator.mediaDevices?.getUserMedia) {
   setStatus("This browser does not support camera access.");
+  showCameraDiagnostics(new Error("This browser does not support camera access."), "Unsupported browser");
 }
