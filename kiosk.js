@@ -34,6 +34,7 @@ const guestEmailEl = document.getElementById("guestEmail");
 const consentEl = document.getElementById("consent");
 
 const startCameraBtn = document.getElementById("startCameraBtn");
+const restartCameraBtn = document.getElementById("restartCameraBtn");
 const captureBtn = document.getElementById("captureBtn");
 const switchBtn = document.getElementById("switchBtn");
 const downloadBtn = document.getElementById("downloadBtn");
@@ -160,6 +161,9 @@ async function getCameraDevices() {
 
 function stopStream() {
   if (!state.stream) {
+    cameraEl.pause();
+    cameraEl.srcObject = null;
+    restartCameraBtn.disabled = false;
     return;
   }
 
@@ -169,15 +173,10 @@ function stopStream() {
   state.stream = null;
   captureBtn.disabled = true;
   switchBtn.disabled = true;
+  restartCameraBtn.disabled = false;
 }
 
-async function startCamera(deviceId = null) {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Camera API not supported in this browser.");
-  }
-
-  stopStream();
-
+function createCameraConstraints(deviceId = null, includeFacingMode = true) {
   const constraints = {
     video: {
       width: { ideal: 1280 },
@@ -188,25 +187,141 @@ async function startCamera(deviceId = null) {
 
   if (deviceId) {
     constraints.video.deviceId = { exact: deviceId };
-  } else {
+  } else if (includeFacingMode) {
     constraints.video.facingMode = { ideal: state.facingMode };
   }
 
-  state.stream = await navigator.mediaDevices.getUserMedia(constraints);
-  cameraEl.srcObject = state.stream;
-  await cameraEl.play();
+  return constraints;
+}
 
-  const [track] = state.stream.getVideoTracks();
-  const settings = track?.getSettings() || {};
-  state.currentDeviceId = settings.deviceId || deviceId;
+function describeCameraError(err) {
+  switch (err?.name) {
+    case "NotAllowedError":
+      return "Camera access was blocked. Allow camera permissions and try again.";
+    case "NotFoundError":
+      return "No camera was found for this browser session.";
+    case "NotReadableError":
+      return "The camera is busy or locked by another app or tab.";
+    case "OverconstrainedError":
+      return "The selected camera is unavailable. Restart to use another device.";
+    case "AbortError":
+      return "The camera connection was interrupted. Try restarting it.";
+    default:
+      return err?.message || "Unknown camera error.";
+  }
+}
 
-  await getCameraDevices();
-  if (state.currentDeviceId) {
-    cameraSelectEl.value = state.currentDeviceId;
+function watchActiveStream(stream) {
+  const [track] = stream.getVideoTracks();
+  if (!track) {
+    return;
   }
 
-  captureBtn.disabled = false;
-  setStatus("Camera active. Ready to capture.", true);
+  track.addEventListener("ended", () => {
+    if (state.stream !== stream) {
+      return;
+    }
+
+    stopStream();
+    setStatus("Camera connection ended. Click Restart Camera to reconnect.");
+  });
+}
+
+async function startCamera(deviceId = null) {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error("Camera API not supported in this browser.");
+  }
+
+  stopStream();
+  startCameraBtn.disabled = true;
+  restartCameraBtn.disabled = true;
+  setStatus("Starting camera...", true);
+
+  const attempts = deviceId
+    ? [
+        createCameraConstraints(deviceId),
+        createCameraConstraints(null, true),
+        createCameraConstraints(null, false),
+      ]
+    : [createCameraConstraints(null, true), createCameraConstraints(null, false)];
+
+  let lastError = null;
+
+  try {
+    for (const constraints of attempts) {
+      try {
+        state.stream = await navigator.mediaDevices.getUserMedia(constraints);
+        cameraEl.srcObject = state.stream;
+        await cameraEl.play();
+
+        const [track] = state.stream.getVideoTracks();
+        const settings = track?.getSettings() || {};
+        state.currentDeviceId = settings.deviceId || deviceId;
+        watchActiveStream(state.stream);
+
+        await getCameraDevices();
+        if (state.currentDeviceId) {
+          cameraSelectEl.value = state.currentDeviceId;
+        }
+
+        captureBtn.disabled = false;
+        restartCameraBtn.disabled = false;
+        setStatus("Camera active. Ready to capture.", true);
+        return;
+      } catch (err) {
+        lastError = err;
+        stopStream();
+      }
+    }
+  } finally {
+    startCameraBtn.disabled = false;
+  }
+
+  throw new Error(describeCameraError(lastError));
+}
+
+async function connectCameraWithRetry(deviceId = null, maxAttempts = 3) {
+  const retryDelaysMs = [0, 1200, 2500];
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      if (attempt > 1) {
+        setStatus(`Retrying camera connection (${attempt}/${maxAttempts})...`);
+      }
+
+      await getCameraDevices();
+
+      const requestedDeviceId =
+        deviceId || cameraSelectEl.value || state.currentDeviceId || null;
+
+      await startCamera(requestedDeviceId);
+      return;
+    } catch (err) {
+      lastError = err;
+      state.currentDeviceId = null;
+      stopStream();
+
+      if (attempt < maxAttempts) {
+        await wait(retryDelaysMs[Math.min(attempt, retryDelaysMs.length - 1)]);
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+async function restartCamera() {
+  try {
+    setStatus("Restarting camera connection...", true);
+    await connectCameraWithRetry(
+      cameraSelectEl.value || state.currentDeviceId || null,
+      3
+    );
+  } catch (err) {
+    console.error(err);
+    setStatus(`Camera restart failed: ${err.message}. Close other camera apps and try again.`);
+  }
 }
 
 function showCountdown(value) {
@@ -580,12 +695,14 @@ function clearSession() {
 
 startCameraBtn.addEventListener("click", async () => {
   try {
-    await startCamera(state.currentDeviceId || null);
+    await connectCameraWithRetry(state.currentDeviceId || null, 3);
   } catch (err) {
     console.error(err);
-    setStatus(`Camera start failed: ${err.message}. Use HTTPS or localhost.`);
+    setStatus(`Camera start failed: ${err.message}. Use Restart Camera, then verify HTTPS or localhost.`);
   }
 });
+
+restartCameraBtn.addEventListener("click", restartCamera);
 
 captureBtn.addEventListener("click", captureSequence);
 switchBtn.addEventListener("click", switchLens);
@@ -614,8 +731,22 @@ document.addEventListener("visibilitychange", () => {
   // Release camera when tab is backgrounded to avoid locking device resources.
   if (document.visibilityState === "hidden") {
     stopStream();
+    setStatus("Camera paused while this tab is hidden.");
   }
 });
+
+if (navigator.mediaDevices?.addEventListener) {
+  navigator.mediaDevices.addEventListener("devicechange", async () => {
+    try {
+      await getCameraDevices();
+      if (!state.stream) {
+        setStatus("Camera devices changed. Click Restart Camera if the preview does not reconnect.");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
+}
 
 configureEventUi();
 buildFilterChips();
