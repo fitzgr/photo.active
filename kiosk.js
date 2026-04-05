@@ -120,6 +120,10 @@ function showCameraDiagnostics(err, contextLabel = "camera connection") {
   cameraDiagnosticsEl.hidden = false;
 }
 
+function updateCaptureAvailability() {
+  captureBtn.disabled = !state.stream || !state.eventRecord || state.runningCapture;
+}
+
 function queryParam(name) {
   const params = new URLSearchParams(window.location.search);
   return params.get(name);
@@ -222,6 +226,7 @@ function stopStream() {
     cameraEl.pause();
     cameraEl.srcObject = null;
     restartCameraBtn.disabled = false;
+    updateCaptureAvailability();
     return;
   }
 
@@ -229,9 +234,9 @@ function stopStream() {
   cameraEl.pause();
   cameraEl.srcObject = null;
   state.stream = null;
-  captureBtn.disabled = true;
   switchBtn.disabled = true;
   restartCameraBtn.disabled = false;
+  updateCaptureAvailability();
 }
 
 function createCameraConstraints(deviceId = null, includeFacingMode = true) {
@@ -322,10 +327,14 @@ async function startCamera(deviceId = null) {
           cameraSelectEl.value = state.currentDeviceId;
         }
 
-        captureBtn.disabled = false;
+        updateCaptureAvailability();
         restartCameraBtn.disabled = false;
         hideCameraDiagnostics();
-        setStatus("Camera active. Ready to capture.", true);
+        if (state.eventRecord) {
+          setStatus("Camera active. Ready to capture.", true);
+        } else {
+          setStatus("Camera active for preview. Set a live event in Admin to enable capture.", true);
+        }
         return;
       } catch (err) {
         lastError = err;
@@ -526,9 +535,9 @@ async function captureSequence() {
     console.error(err);
     setStatus(`Capture failed: ${err.message}`);
   } finally {
-    captureBtn.disabled = false;
-    switchBtn.disabled = state.cameraDevices.length < 2;
     state.runningCapture = false;
+    updateCaptureAvailability();
+    switchBtn.disabled = state.cameraDevices.length < 2;
     showCountdown(0);
   }
 }
@@ -758,6 +767,20 @@ function clearSession() {
   }
 }
 
+async function autoStartCameraOnLoad() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return;
+  }
+
+  try {
+    await connectCameraWithRetry(state.currentDeviceId || null, 2);
+  } catch (err) {
+    console.error(err);
+    setStatus(`Automatic camera start failed: ${err.userMessage || err.message}. Use Start Camera or Restart Camera.`);
+    showCameraDiagnostics(err, "Automatic start failed");
+  }
+}
+
 startCameraBtn.addEventListener("click", async () => {
   try {
     await connectCameraWithRetry(state.currentDeviceId || null, 3);
@@ -820,6 +843,7 @@ buildFilterChips();
 resetResult();
 applyCurrentFilter();
 initGallery();
+updateCaptureAvailability();
 
 // Initialize session manager
 state.sessionManager = new window.SessionManager();
@@ -845,4 +869,6 @@ clearSessionBtn?.addEventListener("click", () => {
 if (!navigator.mediaDevices?.getUserMedia) {
   setStatus("This browser does not support camera access.");
   showCameraDiagnostics(new Error("This browser does not support camera access."), "Unsupported browser");
+} else {
+  autoStartCameraOnLoad();
 }
