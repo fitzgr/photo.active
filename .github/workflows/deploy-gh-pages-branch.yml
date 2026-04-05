@@ -15,6 +15,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Stamp deploy version metadata
+        env:
+          DEPLOY_SHA: ${{ github.sha }}
+          DEPLOY_BEFORE: ${{ github.event.before }}
+          DEPLOY_DATE: ${{ github.event.head_commit.timestamp }}
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          version_path = Path("version.json")
+          payload = json.loads(version_path.read_text())
+
+          deploy_sha = "${{ github.sha }}"
+          deploy_before = "${{ github.event.before }}"
+          deploy_date = "${{ github.event.head_commit.timestamp }}"
+
+          short_sha = deploy_sha[:7]
+          short_before = deploy_before[:7] if deploy_before and not deploy_before.startswith("0000000") else short_sha
+
+          payload["pushRange"] = f"{short_before}..{short_sha}"
+          payload["updatedAt"] = deploy_date[:10] if deploy_date else payload.get("updatedAt", "")
+
+          version_path.write_text(json.dumps(payload, indent=2) + "\n")
+          PY
+
       - name: Deploy static site to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
