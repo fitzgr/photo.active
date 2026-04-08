@@ -78,19 +78,22 @@
           I consent to media sharing follow-up.
         </label>
 
+        <section class="status-panel" aria-label="Camera status">
+          <p class="status-label">Status</p>
+          <p id="status" class="status" aria-live="polite">Camera is not started.</p>
+          <section id="cameraDiagnostics" class="camera-diagnostics" aria-live="polite" hidden>
+            <h3 id="cameraDiagnosticsTitle">Camera Diagnostics</h3>
+            <p id="cameraDiagnosticsSummary" class="muted"></p>
+            <ul id="cameraDiagnosticsList" class="camera-diagnostics-list"></ul>
+          </section>
+        </section>
+
         <div class="button-row">
           <button id="startCameraBtn" class="btn" type="button">Start Camera</button>
           <button id="restartCameraBtn" class="btn" type="button">Restart Camera</button>
           <button id="captureBtn" class="btn btn-primary" type="button" disabled>Capture</button>
           <button id="switchBtn" class="btn" type="button" disabled>Switch Lens</button>
         </div>
-
-        <p id="status" class="status" aria-live="polite">Camera is not started.</p>
-        <section id="cameraDiagnostics" class="camera-diagnostics" aria-live="polite" hidden>
-          <h3 id="cameraDiagnosticsTitle">Camera Diagnostics</h3>
-          <p id="cameraDiagnosticsSummary" class="muted"></p>
-          <ul id="cameraDiagnosticsList" class="camera-diagnostics-list"></ul>
-        </section>
       </aside>
     </section>
 

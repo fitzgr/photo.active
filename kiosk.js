@@ -8,6 +8,7 @@ const state = {
   eventRecord: null,
   sessionId: null,
   sessionManager: null,
+  lastCameraError: null,
 };
 
 const filters = [
@@ -66,6 +67,8 @@ function setStatus(text, ok = false) {
   statusEl.classList.toggle("ok", ok);
 }
 
+setCameraSelectPlaceholder("Detecting cameras...");
+
 function hideCameraDiagnostics() {
   if (!cameraDiagnosticsEl) {
     return;
@@ -81,6 +84,7 @@ function showCameraDiagnostics(err, contextLabel = "camera connection") {
     return;
   }
 
+  state.lastCameraError = err || null;
   const errorName = err?.name || "CameraError";
   const summary = err?.userMessage || err?.message || "Camera connection failed.";
   const steps = [
@@ -107,6 +111,16 @@ function showCameraDiagnostics(err, contextLabel = "camera connection") {
     steps.unshift("The previously selected device is no longer available. Restart Camera will try to fall back to any available camera.");
   }
 
+  const contextFacts = [
+    `Secure context: ${window.isSecureContext ? "yes" : "no"}`,
+    `mediaDevices API: ${navigator.mediaDevices ? "available" : "missing"}`,
+    `Detected cameras: ${state.cameraDevices.length}`,
+  ];
+
+  for (const fact of contextFacts) {
+    steps.push(fact);
+  }
+
   cameraDiagnosticsTitleEl.textContent = "Camera Diagnostics";
   cameraDiagnosticsSummaryEl.textContent = `${contextLabel}: ${summary}`;
   cameraDiagnosticsListEl.innerHTML = "";
@@ -122,6 +136,21 @@ function showCameraDiagnostics(err, contextLabel = "camera connection") {
 
 function updateCaptureAvailability() {
   captureBtn.disabled = !state.stream || !state.eventRecord || state.runningCapture;
+}
+
+function buildFallbackEvent() {
+  return {
+    id: "quick-test-event",
+    name: "Quick Test Mode",
+    type: "Local Test",
+    publicGallery: false,
+    accentColor: "#f95d2f",
+    modes: {
+      photo: true,
+      strip: true,
+    },
+    isFallbackTestMode: true,
+  };
 }
 
 function queryParam(name) {
@@ -144,16 +173,18 @@ function configureEventUi() {
   state.eventRecord = resolveEvent();
 
   if (!state.eventRecord) {
-    eventNameEl.textContent = "No active event";
-    eventMetaEl.textContent = "Open admin.html and set one event to Live.";
-    captureBtn.disabled = true;
-    setStatus("No live event found. Admin setup is required.");
-    return;
+    state.eventRecord = buildFallbackEvent();
+    eventNameEl.textContent = state.eventRecord.name;
+    eventMetaEl.textContent = "No live event found. Running in local test mode.";
+    document.documentElement.style.setProperty("--accent", state.eventRecord.accentColor);
+    setStatus("No live event found. Local test mode is active.", true);
   }
 
   const event = state.eventRecord;
   eventNameEl.textContent = event.name;
-  eventMetaEl.textContent = `${event.type} | ${event.publicGallery ? "Public" : "Private"} gallery`;
+  if (!event.isFallbackTestMode) {
+    eventMetaEl.textContent = `${event.type} | ${event.publicGallery ? "Public" : "Private"} gallery`;
+  }
   document.documentElement.style.setProperty("--accent", event.accentColor || "#f95d2f");
 
   const supportsStrip = Boolean(event.modes?.strip);
@@ -206,19 +237,42 @@ function applyCurrentFilter() {
   cameraEl.style.filter = found.css;
 }
 
-async function getCameraDevices() {
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  state.cameraDevices = devices.filter((d) => d.kind === "videoinput");
+function setCameraSelectPlaceholder(message) {
   cameraSelectEl.innerHTML = "";
+  const opt = document.createElement("option");
+  opt.value = "";
+  opt.textContent = message;
+  cameraSelectEl.appendChild(opt);
+}
 
-  state.cameraDevices.forEach((device, i) => {
-    const opt = document.createElement("option");
-    opt.value = device.deviceId;
-    opt.textContent = device.label || `Camera ${i + 1}`;
-    cameraSelectEl.appendChild(opt);
-  });
+async function getCameraDevices() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    state.cameraDevices = devices.filter((d) => d.kind === "videoinput");
 
-  switchBtn.disabled = state.cameraDevices.length < 2;
+    if (state.cameraDevices.length === 0) {
+      setCameraSelectPlaceholder("No camera detected");
+      switchBtn.disabled = true;
+      return;
+    }
+
+    cameraSelectEl.innerHTML = "";
+
+    state.cameraDevices.forEach((device, i) => {
+      const opt = document.createElement("option");
+      opt.value = device.deviceId;
+      opt.textContent = device.label || `Camera ${i + 1}`;
+      cameraSelectEl.appendChild(opt);
+    });
+
+    switchBtn.disabled = state.cameraDevices.length < 2;
+  } catch (err) {
+    state.cameraDevices = [];
+    setCameraSelectPlaceholder("Unable to read camera devices");
+    switchBtn.disabled = true;
+    err.userMessage = err.userMessage || "The browser could not read attached camera devices.";
+    throw err;
+  }
 }
 
 function stopStream() {
@@ -272,6 +326,13 @@ function describeCameraError(err) {
     default:
       return err?.message || "Unknown camera error.";
   }
+}
+
+function buildNoCameraError() {
+  const err = new Error("No camera device was detected by the browser.");
+  err.name = "NotFoundError";
+  err.userMessage = describeCameraError(err);
+  return err;
 }
 
 function watchActiveStream(stream) {
@@ -364,6 +425,10 @@ async function connectCameraWithRetry(deviceId = null, maxAttempts = 3) {
       }
 
       await getCameraDevices();
+
+      if (state.cameraDevices.length === 0) {
+        throw buildNoCameraError();
+      }
 
       const requestedDeviceId =
         deviceId || cameraSelectEl.value || state.currentDeviceId || null;
@@ -499,7 +564,6 @@ function storeCaptureRecord() {
 
   // Update session summary after capture
   updateSessionSummary();
-}
 }
 
 async function captureSequence() {
@@ -829,7 +893,11 @@ if (navigator.mediaDevices?.addEventListener) {
   navigator.mediaDevices.addEventListener("devicechange", async () => {
     try {
       await getCameraDevices();
-      if (!state.stream) {
+      if (state.cameraDevices.length === 0) {
+        const noCameraError = buildNoCameraError();
+        setStatus(`Camera unavailable: ${noCameraError.userMessage}`);
+        showCameraDiagnostics(noCameraError, "No camera detected");
+      } else if (!state.stream) {
         setStatus("Camera devices changed. Click Restart Camera if the preview does not reconnect.");
       }
     } catch (err) {
@@ -870,5 +938,16 @@ if (!navigator.mediaDevices?.getUserMedia) {
   setStatus("This browser does not support camera access.");
   showCameraDiagnostics(new Error("This browser does not support camera access."), "Unsupported browser");
 } else {
+  getCameraDevices()
+    .then(() => {
+      if (state.cameraDevices.length === 0) {
+        const noCameraError = buildNoCameraError();
+        setStatus(`Camera unavailable: ${noCameraError.userMessage}`);
+        showCameraDiagnostics(noCameraError, "No camera detected");
+      }
+    })
+    .catch((err) => {
+      console.error(err);
+    });
   autoStartCameraOnLoad();
 }
