@@ -315,9 +315,26 @@ input {
   opacity: 0.5;
 }
 
+.status-panel {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(29, 38, 54, 0.14);
+  border-radius: 12px;
+  background: rgba(20, 33, 47, 0.04);
+}
+
+.status-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 .status {
   margin: 0;
   font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .status.ok {
@@ -325,7 +342,7 @@ input {
 }
 
 .camera-diagnostics {
-  margin-top: 0.8rem;
+  margin-top: 0.75rem;
   padding: 0.85rem 0.95rem;
   border: 1px solid rgba(239, 95, 51, 0.28);
   border-radius: 12px;
